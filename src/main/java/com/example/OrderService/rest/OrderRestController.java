@@ -4,6 +4,7 @@ import java.util.*;
 
 import com.example.OrderService.entity.Order;
 import com.example.OrderService.service.OrderService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -30,7 +31,16 @@ public class OrderRestController {
 	private final String crmRestUrlOrderDetail = "http://localhost:8005/api";
 	private final String crmRestUrlUser = "http://localhost:8006/api";
 
+	public List<Map<String, Object>> informFallForGetByUserId(Exception e) {
+		List<Map<String, Object>> result = new ArrayList<>();
+		Map<String, Object> map = new HashMap<>();
+		map.put("message", "Fall to rest template");
+		result.add(map);
+		return result;
+	}
+
 	@GetMapping("/orders/byUserId/{id}")
+	@CircuitBreaker(name = "orderGetService", fallbackMethod = "informFallForGetByUserId")
 	public List<Map<String, Object>> getOrdersById(@PathVariable long id) {
 		List<Order> orders = orderService.getOrderByUser(id);
 		List<Map<String, Object>> results = new ArrayList<>();
@@ -57,9 +67,14 @@ public class OrderRestController {
 		return results;
 	}
 	
-
+	public Map<String, Object> informFall(Exception e) {
+		Map<String, Object> result = new HashMap<>();
+		result.put("message", "Fall to rest template");
+		return result;
+	}
 	
 	@PostMapping(path = "/order")
+	@CircuitBreaker(name = "orderPostService", fallbackMethod = "informFall")
 	public Map<String, Object> saveOrder(
 			@RequestParam("phone") String phone
 			, @RequestParam("totalPrice") double totalPrice
@@ -82,10 +97,10 @@ public class OrderRestController {
 					, new Date(), userId);
 		}
 		if (order != null) {
-			orderService.saveOrder(order);
 			for (Object orderDetail: orderDetails) {
 				restTemplate.postForObject(crmRestUrlOrderDetail + "/orderDetail", orderDetail, String.class);
 			}
+			orderService.saveOrder(order);
 		}
 		Object user = restTemplate.getForObject(crmRestUrlUser + "/user/" + order.getUserId(), Object.class);
 		ResponseEntity<List<Object>> responseEntity =
@@ -108,15 +123,12 @@ public class OrderRestController {
 	}
 
 	@PutMapping("/order")
-	public Map<String, Object> updateOrder(@RequestBody Order order
-			, @RequestParam("userId") long userId
-			, @RequestParam("isCash") boolean isCash
-			, @RequestParam("isPaid") boolean isPaid
-			, @RequestParam("isCompleted") boolean isCompleted) {
-		order.setUserId(userId);
-		order.setCash(isCash);
-		order.setPaid(isPaid);
-		order.setCompleted(isCompleted);
+	@CircuitBreaker(name = "orderPutService", fallbackMethod = "informFall")
+	public Map<String, Object> updateOrder(@RequestBody Order order) {
+//		order.setUserId(userId);
+//		order.setCash(isCash);
+//		order.setPaid(isPaid);
+//		order.setCompleted(isCompleted);
 		orderService.saveOrder(order);
 
 		Object user = restTemplate.getForObject(crmRestUrlUser + "/user/" + order.getUserId(), Object.class);
@@ -140,9 +152,12 @@ public class OrderRestController {
 		return temp;
 	}
 
-
+	public String informFallForDelete(Exception e) {
+		return "Fail to rest template for delete";
+	}
 
 	@DeleteMapping("/order")
+	@CircuitBreaker(name = "orderDeleteService", fallbackMethod = "informFallForDelete")
 	public String deleteOrder(@RequestParam("orderId") long orderId) {
 		restTemplate.delete(crmRestUrlOrderDetail + "/orderDetail/" + orderId);
 		orderService.deleteOrder(orderId);
