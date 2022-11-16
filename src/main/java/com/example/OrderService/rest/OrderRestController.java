@@ -106,6 +106,37 @@ public class OrderRestController {
 		temp.put("orderDetails", orderDetailReturns);
 		return temp;
 	}
-	
 
+	@PutMapping("/order")
+	public Map<String, Object> updateOrder(@RequestBody Order order
+			, @RequestParam("userId") long userId
+			, @RequestParam("isCash") boolean isCash
+			, @RequestParam("isPaid") boolean isPaid
+			, @RequestParam("isCompleted") boolean isCompleted) {
+		order.setUserId(userId);
+		order.setCash(isCash);
+		order.setPaid(isPaid);
+		order.setCompleted(isCompleted);
+		orderService.saveOrder(order);
+
+		Object user = restTemplate.getForObject(crmRestUrlUser + "/user/" + order.getUserId(), Object.class);
+		ResponseEntity<List<Object>> responseEntity =
+				restTemplate.exchange(crmRestUrlOrderDetail + "/orderDetails/byOrderId/" + order.getId(), HttpMethod.GET, null,
+						new ParameterizedTypeReference<List<Object>>() {});
+		List<Object> orderDetailReturns = responseEntity.getBody();
+		Map<String, Object> temp = new HashMap<>();
+		temp.put("idOrder", order.getId());
+		temp.put("phone", order.getPhone());
+		temp.put("totalPrice", order.getTotalPrice());
+		temp.put("address", order.getAddress());
+		temp.put("customerName", order.getCustomerName());
+		temp.put("isCash", order.isCash());
+		temp.put("isPaid", order.isPaid());
+		temp.put("isCompleted;", order.isCompleted());
+		temp.put("invoiceDate", order.getInvoiceDate());
+		temp.put("user", user);
+		temp.put("orderDetails", orderDetailReturns);
+
+		return temp;
+	}
 }
