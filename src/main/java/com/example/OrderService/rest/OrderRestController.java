@@ -139,4 +139,13 @@ public class OrderRestController {
 
 		return temp;
 	}
+
+
+
+	@DeleteMapping("/order")
+	public String deleteOrder(@RequestParam("orderId") long orderId) {
+		restTemplate.delete(crmRestUrlOrderDetail + "/orderDetail/" + orderId);
+		orderService.deleteOrder(orderId);
+		return "Deleted order id: " + orderId;
+	}
 }
